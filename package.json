@@ -1,0 +1,29 @@
+{
+  "name": "@ingestkorea/util-http-handler",
+  "version": "0.8.0",
+  "description": "INGESTKOREA Util HTTP Handler for Node.js.",
+  "main": "./dist-cjs/index.js",
+  "module": "./dist-es/index.js",
+  "types": "./dist-types/index.d.ts",
+  "scripts": {
+    "build": "npm run clean && npm run build:cjs && npm run build:es && npm run build:types",
+    "build:cjs": "tsc -p tsconfig.cjs.json",
+    "build:es": "tsc -p tsconfig.es.json",
+    "build:types": "tsc -p tsconfig.types.json",
+    "clean": "rm -rf ./dist-*"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ingestkorea/util-http-handler.git"
+  },
+  "author": "ingestkorea",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ingestkorea/util-http-handler/issues"
+  },
+  "homepage": "https://github.com/ingestkorea/util-http-handler#readme",
+  "dependencies": {
+    "@ingestkorea/util-error-handler": "^1.0.2",
+    "@types/node": "^18.11.9"
+  }
+}
