@@ -4,7 +4,7 @@ import { IngestkoreaError } from '@ingestkorea/util-error-handler';
 
 export const setConnectionTimeout = (
   request: ClientRequest, reject: (err: IngestkoreaError) => void, timeoutInMs = 0
-) => {
+): void => {
   if (!timeoutInMs) return;
   request.on("socket", (socket: Socket) => {
     if (socket.connecting) {

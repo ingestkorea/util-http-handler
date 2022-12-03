@@ -3,6 +3,7 @@ import { Agent as hsAgent, request as hsRequest, RequestOptions } from "node:htt
 import { IngestkoreaError } from '@ingestkorea/util-error-handler';
 import { HttpRequest, HttpResponse } from './protocol-http';
 
+import { writeRequestBody } from './write-request-body';
 import { getTransformedHeaders } from './get-transformed-headers';
 import { setConnectionTimeout } from './set-connection-timeout';
 import { setSocketTimeout } from './set-socket-timeout';
@@ -60,7 +61,7 @@ export class NodeHttpHandler {
         const httpResponse = new HttpResponse({
           statusCode: res.statusCode || -1,
           headers: getTransformedHeaders(res.headers),
-          body: res,
+          body: res
         });
         resolve({ response: httpResponse });
       });
@@ -71,10 +72,10 @@ export class NodeHttpHandler {
         req.destroy();
         return reject(new IngestkoreaError({
           code: 400, type: 'Bad Request',
-          message: 'Invalid Request', description: `${err.name}: ${err.message}`
+          message: 'Invalid Request', description: err.message
         }));
       });
-      req.end(request.body);
+      writeRequestBody(req, request);
     });
   };
 };

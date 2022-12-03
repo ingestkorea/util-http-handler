@@ -30,9 +30,10 @@ npm install @ingestkorea/util-http-handler
 
 ### Import
 ```ts
-import { IngestkoreaError } from '@ingestkorea/util-error-handler';
+import { IngestkoreaError, ingestkoreaErrorCodeChecker } from '@ingestkorea/util-error-handler';
 import {
-    NodeHttpHandler, HttpRequest, HttpResponse, collectBodyString
+    NodeHttpHandler, HttpRequest, HttpResponse,
+    collectBodyString, destroyStream
 } from '@ingestkorea/util-http-handler';
 ```
 
@@ -48,29 +49,37 @@ const httpHandler = new NodeHttpHandler({
 
 #### Set Response Body Handler
 ```ts
-const parseBody = async (contentType: string, streamBody: any): Promise<any> => {
+const verifyJsonHeader = async (contentType: string, streamBody: any): Promise<void> => {
   const isValid = /application\/json/gi.exec(contentType) ? true : false;
-  if (!isValid) throw new IngestkoreaError({
-    code: 400, type: 'Bad Request',
-    message: 'Invalid Request', description: 'response content-type is not applicaion/json'
-  });
+  if (!isValid) {
+    destroyStream(streamBody);
+    throw new IngestkoreaError({
+      code: 400, type: 'Bad Request',
+      message: 'Invalid Request', description: 'response content-type is not applicaion/json'
+    });
+  };
+  return;
+};
+
+const parseBody = async (output: HttpResponse): Promise<any> => {
+  const { headers, body: streamBody } = output;
+  await verifyJsonHeader(headers['content-type'], streamBody);
+
   const data = await collectBodyString(streamBody);
   if (data.length) return JSON.parse(data);
   return {};
 };
 
-const parseErrorBody = async (contentType: string, streamBody: any): Promise<void> => {
-  const isValid = /application\/json/gi.exec(contentType) ? true : false;
-  if (!isValid) throw new IngestkoreaError({
-    code: 400, type: 'Bad Request',
-    message: 'Invalid Request', description: 'response content-type is not applicaion/json'
-  });
+const parseErrorBody = async (output: HttpResponse): Promise<void> => {
+  const { statusCode, headers, body: streamBody } = output;
+  await verifyJsonHeader(headers['content-type'], streamBody);
+
   const data = await collectBodyString(streamBody);
-  if (data.length) throw new IngestkoreaError({
-    code: 400, type: 'Bad Request',
-    message: 'Invalid Request', description: JSON.parse(data)
-  });
-  throw new IngestkoreaError({ code: 400, type: 'Bad Request', message: 'Invalid Request' });
+  let customError = new IngestkoreaError({ code: 400, type: 'Bad Request', message: 'Invalid Request' });
+
+  if (ingestkoreaErrorCodeChecker(statusCode)) customError.error.code = statusCode
+  if (data.length) customError.error.description = JSON.parse(data)
+  throw customError;
 };
 ```
 
@@ -89,9 +98,8 @@ const serialize_command_01 = async () => {
 };
 
 const deserialize_command_01 = async (output: HttpResponse): Promise<any> => {
-  const { statusCode, headers, body } = output;
-  if (statusCode >= 300) await parseErrorBody(headers['content-type'], body);
-  let content = await parseBody(headers['content-type'], body);
+  if (output.statusCode >= 300) await parseErrorBody(output);
+  let content = await parseBody(output);
   return content;
 };
 ```

@@ -3,7 +3,7 @@ import { IngestkoreaError } from '@ingestkorea/util-error-handler';
 
 export const setSocketTimeout = (
   request: ClientRequest, reject: (err: IngestkoreaError) => void, timeoutInMs = 0
-) => {
+): void => {
   request.setTimeout(timeoutInMs, () => {
     request.destroy();
     return reject(new IngestkoreaError({

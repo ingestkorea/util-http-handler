@@ -14,6 +14,7 @@ export interface HttpMessage {
   headers: HeaderBag;
   body?: any;
 };
+
 export type HeaderBag = Record<string, string>;
 
 export interface Endpoint {

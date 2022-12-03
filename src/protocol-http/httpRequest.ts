@@ -11,7 +11,7 @@ export class HttpRequest implements HttpMessage, Endpoint {
   path: string;
   query: QueryParameterBag;
   headers: HeaderBag;
-  body?: string;
+  body?: any;
 
   constructor(options: HttpRequestOptions) {
     this.method = options.method || "GET";
