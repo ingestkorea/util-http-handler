@@ -2,6 +2,7 @@ import { Agent as hAgent, request as hRequest } from "node:http";
 import { Agent as hsAgent, request as hsRequest, RequestOptions } from "node:https";
 import { IngestkoreaError } from '@ingestkorea/util-error-handler';
 import { HttpRequest, HttpResponse } from './protocol-http';
+import { buildQueryString } from './querystring-http'
 
 import { writeRequestBody } from './write-request-body';
 import { getTransformedHeaders } from './get-transformed-headers';
@@ -47,7 +48,7 @@ export class NodeHttpHandler {
       if (!this.config) throw new Error("Node HTTP request handler config is not resolved");
 
       const isSSL = request.protocol === "https:";
-      const queryString = new URLSearchParams(request.query).toString();
+      const queryString = buildQueryString(request.query);
       const nodeHttpsOptions: RequestOptions = {
         method: request.method,
         host: request.hostname,

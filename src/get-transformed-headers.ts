@@ -3,7 +3,7 @@ import { IncomingHttpHeaders } from "http";
 
 export const getTransformedHeaders = (headers: IncomingHttpHeaders): HeaderBag => {
   const init: HeaderBag = {};
-  const transformedHeaders = Object.keys(headers).reduce((acc, name) => {
+  const transformedHeaders = Object.keys(headers).sort().reduce((acc, name) => {
     const headerValues = headers[name];
     if (!headerValues) return acc;
 
