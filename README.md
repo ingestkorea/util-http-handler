@@ -1,7 +1,7 @@
 # @ingestkorea/util-http-handler
 
 [![npm (scoped)](https://img.shields.io/npm/v/@ingestkorea/util-http-handler?style=flat-square)](https://www.npmjs.com/package/@ingestkorea/util-http-handler)
-[![NPM downloads](https://img.shields.io/npm/dm/@ingestkorea/util-http-handler?style=flat-square)](https://www.npmjs.com/package/@ingestkorea/util-http-handler)
+[![npm downloads](https://img.shields.io/npm/dm/@ingestkorea/util-http-handler?style=flat-square)](https://www.npmjs.com/package/@ingestkorea/util-http-handler)
 
 > An internal package
 

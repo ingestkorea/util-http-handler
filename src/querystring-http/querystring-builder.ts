@@ -7,16 +7,23 @@ const encodeRFC3986URIComponent = (uri: string): string => {
 };
 
 export const buildQueryString = (query: QueryParameterBag): string => {
-  let init: string[] = [];
+  const init: string[] = [];
   const parts = Object.keys(query).sort().reduce((acc, key) => {
-    const value = query[key];
-    if (value || typeof value === 'string') {
-      let part = [encodeRFC3986URIComponent(key), encodeRFC3986URIComponent(value)].join('=');
+    const queryKey = encodeRFC3986URIComponent(key);
+    const queryValue = query[key];
+
+    if (Array.isArray(queryValue)) {
+      const sortedValues = queryValue.sort();
+      const parts = sortedValues.map(value => [queryKey, encodeRFC3986URIComponent(value)].join('='));
+      acc.push(...parts);
+    } else if (queryValue || typeof queryValue === 'string') {
+      const part = [queryKey, encodeRFC3986URIComponent(queryValue)].join('=');
       acc.push(part);
-      return acc;
+    } else {
+      acc.push(queryKey)
     };
+
     return acc;
   }, init);
-
   return parts.join("&");
 };

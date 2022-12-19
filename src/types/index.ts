@@ -24,4 +24,4 @@ export interface Endpoint {
   query?: QueryParameterBag;
 };
 
-export type QueryParameterBag = Record<string, string>;
+export type QueryParameterBag = Record<string, string | string[] | null>;
