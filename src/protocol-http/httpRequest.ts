@@ -1,8 +1,8 @@
-import { Endpoint, HeaderBag, HttpMessage, HttpRequest as IHttpRequest, QueryParameterBag } from '../types';
+import { Endpoint, HeaderBag, HttpMessage, HttpRequest as IHttpRequest, QueryParameterBag } from "../types";
 
 type HttpRequestOptions = Partial<HttpMessage> & Partial<Endpoint> & { method?: string };
 
-export interface HttpRequest extends IHttpRequest { }
+export interface HttpRequest extends IHttpRequest {}
 
 export class HttpRequest implements HttpMessage, Endpoint {
   method: string;
@@ -15,13 +15,19 @@ export class HttpRequest implements HttpMessage, Endpoint {
 
   constructor(options: HttpRequestOptions) {
     this.method = options.method || "GET";
-    this.protocol = options.protocol || 'https:'
+    this.protocol = options.protocol || "https:";
     this.hostname = options.hostname || "localhost";
-    this.path = options.path ? '/' + options.path.split('/').filter(d => !!d).join('/') : "/";
+    this.path = options.path
+      ? "/" +
+        options.path
+          .split("/")
+          .filter((d) => !!d)
+          .join("/")
+      : "/";
     this.query = options.query || {};
     this.headers = options.headers || {};
     this.body = options.body;
-  };
+  }
 
   isInstance(request: unknown): request is HttpRequest {
     if (!request) return false;
@@ -34,5 +40,5 @@ export class HttpRequest implements HttpMessage, Endpoint {
       typeof req["query"] === "object" &&
       typeof req["headers"] === "object"
     );
-  };
+  }
 }
