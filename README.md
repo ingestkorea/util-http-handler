@@ -9,14 +9,26 @@
 
 ## Description
 
-Node.js 환경을 위한 가벼운 HTTP 핸들러 유틸리티입니다. AWS Lambda 및 일반 서버 환경에 최적화되어 있습니다.
+- Node.js 환경을 위한 가벼운 HTTP 핸들러 유틸리티입니다.
+- AWS Lambda 및 일반 서버 환경에 최적화되어 있습니다.
+- 기존 Node.js 방식(http/https)과 현대적인 fetch 방식을 모두 지원합니다.
 
 ## Features
 
+- **Multi-Handler 지원**: 정밀한 소켓 제어가 가능한 `NodeHttpHandler`와 최신 API 기반의 `NodeFetchHandler`를 제공합니다.
+
 - **Keep-Alive 지원**: 소켓을 재사용하여 연속적인 요청의 응답 속도를 향상시킵니다.
-- **좀비 소켓 방지**: `freeSocketTimeout` 옵션을 통해 람다 환경의 간헐적인 연결 끊김(ECONNRESET) 이슈를 해결합니다.
-- **이중 타임아웃 시스템**: 연결 타임아웃(connectionTimeout)과 소켓 타임아웃(socketTimeout)을 분리하여 제어합니다.
+
+- **좀비 소켓 방지**: `freeSocketTimeout` 옵션을 통해 람다 환경의 간헐적인 연결 끊김(ECONNRESET) 현상을 방지합니다.
+
+- **이중 타임아웃 시스템**:
+
+  - **NodeHttpHandler**: 연결 타임아웃(connectionTimeout)과 소켓 타임아웃(socketTimeout)을 분리하여 제어합니다.
+  - **NodeFetchHandler**: AbortController 기반의 요청 타임아웃을 지원합니다.
+
 - **리소스 자동 정리**: 요청 성공, 실패, 데이터 파싱 에러 시에도 스트림이 항상 닫히도록 제어합니다.
+
+- **환경별 스트림 처리**: Node.js `Readable` 및 Web 표준 `ReadableStream`을 모두 안전하게 수집하고 정리합니다.
 
 ## Installing
 
@@ -28,20 +40,22 @@ npm install @ingestkorea/util-http-handler
 
 ### Pre-requisites
 
-- TypeScript v5 이상
-- Node v22 이상
+- **TypeScript v5 이상**
+- **Node v22 이상**
 
 ```sh
 # save dev mode
-npm install -D typescript
-npm install -D @types/node
+npm install -D typescript @types/node
 ```
 
 ## Usage
 
 ### HTTP 핸들러 생성
 
-실행 환경에 맞춰 freeSocketTimeout을 조정하면 좀비 소켓(ECONNRESET) 에러를 효과적으로 방지할 수 있습니다.
+#### NodeHttpHandler
+
+- 정밀한 소켓 제어가 필요한 서버 사이드 환경에 적합합니다. (서버/람다 권장)
+- 실행 환경에 맞춰 freeSocketTimeout을 조정하면 좀비 소켓(ECONNRESET) 에러를 효과적으로 방지할 수 있습니다.
 
 ```ts
 import { NodeHttpHandler } from "@ingestkorea/util-http-handler";
@@ -61,17 +75,35 @@ const serverHandler = new NodeHttpHandler({
 });
 ```
 
+#### NodeFetchHandler
+
+- 표준 fetch API 기반으로 동작하며, 가벼운 요청에 적합합니다. (표준/범용 권장)
+
+```ts
+import { NodeFetchHandler } from "@ingestkorea/util-http-handler";
+
+const fetchHandler = new NodeFetchHandler({
+  requestTimeout: 3000, // 전체 요청 제한 시간
+});
+```
+
 ### 응답 바디 처리
 
-`collectBodyString`과 `destroyStream`을 조합하여 메모리 누수 없이 안전하게 데이터를 처리합니다.
+- **NodeHttpHandler**: `collectBodyString`과 `destroyStream`을 조합하여 메모리 누수 없이 안전하게 데이터를 처리합니다.
+
+- **NodeFetchHandler**: `collectFetchBodyString`과 `destroyFetchStream`을 조합하여 메모리 누수 없이 안전하게 데이터를 처리합니다.
+
+**주의사항**: 핸들러 타입에 맞는 데이터 수집, 리소스 정리 함수를 사용해야 합니다.
 
 ```ts
 // helper.ts
-import { HttpResponse, collectBodyString, destroyStream } from "@ingestkorea/util-http-handler";
-
-const isJsonResponse = (contentType?: string): boolean => {
-  return contentType?.toLowerCase().includes("application/json") ?? false;
-};
+import {
+  HttpResponse,
+  collectBodyString,     // NodeHttpHandler 응답용 (Readable)
+  destroyStream,         // Node 스트림 파괴
+  collectFetchBodyString, // FetchHttpHandler 응답용 (ReadableStream)
+  destroyFetchStream     // Fetch 스트림 파괴
+} from "@ingestkorea/util-http-handler";
 
 const parseBody = async (output: HttpResponse): Promise<any> => {
   const { headers, body: streamBody } = output;
@@ -95,6 +127,10 @@ const parseBody = async (output: HttpResponse): Promise<any> => {
 const parseErrorBody = async (output: HttpResponse): Promise<never> => {
   ...
 }
+
+const isJsonResponse = (contentType?: string): boolean => {
+  return contentType?.toLowerCase().includes("application/json") ?? false;
+};
 ```
 
 ### 요청 실행
