@@ -1,2 +1,2 @@
-export * from "./querystring-builder";
-export * from "./querystring-parser";
+export * from "./querystring-builder.js";
+export * from "./querystring-parser.js";

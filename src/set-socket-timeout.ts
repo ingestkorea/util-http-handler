@@ -1,20 +1,9 @@
-import { ClientRequest } from "http";
-import { IngestkoreaError } from "@ingestkorea/util-error-handler";
+import { ClientRequest } from "node:http";
 
-export const setSocketTimeout = (
-  request: ClientRequest,
-  reject: (err: IngestkoreaError) => void,
-  timeoutInMs = 0
-): void => {
+export const setSocketTimeout = (request: ClientRequest, safeReject: (err: Error) => void, timeoutInMs = 0): void => {
+  if (!timeoutInMs) return;
+
   request.setTimeout(timeoutInMs, () => {
-    request.destroy();
-    return reject(
-      new IngestkoreaError({
-        code: 504,
-        type: "Gateway Timeout",
-        message: "Request Timeout",
-        description: `Connection timed out after ${timeoutInMs} ms`,
-      })
-    );
+    safeReject(new Error(`[Gateway Timeout]: No data received/sent for ${timeoutInMs}ms`));
   });
 };

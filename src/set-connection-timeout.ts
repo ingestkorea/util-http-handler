@@ -1,39 +1,31 @@
-import { ClientRequest } from "http";
-import { Socket } from "net";
-import { IngestkoreaError } from "@ingestkorea/util-error-handler";
+import { ClientRequest } from "node:http";
+import { Socket } from "node:net";
 
 export const setConnectionTimeout = (
   request: ClientRequest,
-  reject: (err: IngestkoreaError) => void,
+  safeReject: (err: Error) => void,
   timeoutInMs = 0
 ): void => {
   if (!timeoutInMs) return;
+
   request.on("socket", (socket: Socket) => {
-    if (socket.connecting) {
-      const timeoutId = setTimeout(() => {
-        request.destroy();
-        return reject(
-          new IngestkoreaError({
-            code: 504,
-            type: "Gateway Timeout",
-            message: "Request Timeout",
-            description: `Socket timed out without establishing a connection within ${timeoutInMs} ms`,
-          })
-        );
-      }, timeoutInMs);
-      socket.on("connect", () => clearTimeout(timeoutId));
-      socket.on("error", (err: Error) => {
-        clearTimeout(timeoutId);
-        request.destroy();
-        return reject(
-          new IngestkoreaError({
-            code: 500,
-            type: "Internal Server Error",
-            message: "Something Broken",
-            description: `Socket Connecting Error: ${err.message}`,
-          })
-        );
-      });
-    }
+    if (!socket.connecting) return;
+
+    const timeoutId = setTimeout(() => {
+      cleanup();
+      safeReject(new Error(`[Gateway Timeout]: Failed to establish connection within ${timeoutInMs}ms`));
+    }, timeoutInMs);
+
+    const cleanup = () => {
+      clearTimeout(timeoutId);
+      socket.off("connect", onConnect);
+      socket.off("error", onError);
+    };
+
+    const onConnect = () => cleanup();
+    const onError = (err: Error) => cleanup();
+
+    socket.once("connect", onConnect);
+    socket.once("error", onError);
   });
 };

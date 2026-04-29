@@ -1,4 +1,4 @@
-import { QueryParameterBag } from "../types";
+import { QueryParameterBag } from "../models/index.js";
 
 // Encoding for RFC3986
 const hexEncode = (c: string) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`;

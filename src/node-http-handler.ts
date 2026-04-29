@@ -1,16 +1,16 @@
-import { Agent as hAgent, request as hRequest } from "node:http";
+import { Agent as hAgent, AgentOptions, request as hRequest } from "node:http";
 import { Agent as hsAgent, request as hsRequest, RequestOptions } from "node:https";
-import { IngestkoreaError } from "@ingestkorea/util-error-handler";
-import { HttpRequest, HttpResponse } from "./protocol-http";
-import { buildQueryString } from "./querystring-http";
-import { writeRequestBody } from "./write-request-body";
-import { getTransformedHeaders } from "./get-transformed-headers";
-import { setConnectionTimeout } from "./set-connection-timeout";
-import { setSocketTimeout } from "./set-socket-timeout";
+import { HttpRequest, HttpResponse } from "./protocol-http/index.js";
+import { buildQueryString } from "./querystring-http/index.js";
+import { writeRequestBody } from "./write-request-body.js";
+import { getTransformedHeaders } from "./get-transformed-headers.js";
+import { setConnectionTimeout } from "./set-connection-timeout.js";
+import { setSocketTimeout } from "./set-socket-timeout.js";
 
 export interface NodeHttpHandlerOptions {
   connectionTimeout?: number;
   socketTimeout?: number;
+  freeSocketTimeout?: number;
   httpAgent?: hAgent;
   httpsAgent?: hsAgent;
 }
@@ -22,31 +22,39 @@ interface ResolvedNodeHttpHandlerConfig {
   httpsAgent: hsAgent;
 }
 
+const DEFAULT_CONNECTION_TIMEOUT = 5000;
+const DEFAULT_SOCKET_TIMEOUT = 5000;
+const DEFAULT_FREE_SOCKET_TIMEOUT = 3000;
+const DEFAULT_MAX_SOCKETS = 50;
+
 export class NodeHttpHandler {
-  config?: ResolvedNodeHttpHandlerConfig;
+  config: ResolvedNodeHttpHandlerConfig;
 
   constructor(options?: NodeHttpHandlerOptions) {
-    const { connectionTimeout, socketTimeout, httpAgent, httpsAgent } = options || {};
-    const keepAlive = true;
-    const maxSockets = 50;
-    const family = 4;
+    const agentOptions: AgentOptions = {
+      keepAlive: true,
+      family: 4,
+      maxSockets: DEFAULT_MAX_SOCKETS,
+    };
+    const httpAgent = options?.httpAgent || new hAgent(agentOptions);
+    const httpsAgent = options?.httpsAgent || new hsAgent(agentOptions);
+    (httpsAgent as any).freeSocketTimeout = options?.freeSocketTimeout || DEFAULT_FREE_SOCKET_TIMEOUT;
+
     this.config = {
-      connectionTimeout: connectionTimeout || 5000,
-      socketTimeout: socketTimeout || 5000,
-      httpAgent: httpAgent || new hAgent({ keepAlive, maxSockets, family }),
-      httpsAgent: httpsAgent || new hsAgent({ keepAlive, maxSockets, family }),
+      connectionTimeout: options?.connectionTimeout || DEFAULT_CONNECTION_TIMEOUT,
+      socketTimeout: options?.socketTimeout || DEFAULT_SOCKET_TIMEOUT,
+      httpAgent,
+      httpsAgent,
     };
   }
 
   destroy(): void {
-    this.config?.httpAgent?.destroy();
-    this.config?.httpsAgent?.destroy();
+    this.config.httpAgent.destroy();
+    this.config.httpsAgent.destroy();
   }
 
   async handle(request: HttpRequest): Promise<{ response: HttpResponse }> {
     return new Promise((resolve, reject) => {
-      if (!this.config) throw new Error("Node HTTP request handler config is not resolved");
-
       const isSSL = request.protocol === "https:";
       const queryString = buildQueryString(request.query);
       const nodeHttpsOptions: RequestOptions = {
@@ -57,29 +65,38 @@ export class NodeHttpHandler {
         agent: isSSL ? this.config.httpsAgent : this.config.httpAgent,
       };
 
+      let isFinished = false;
+      // 중복 호출 방지 래퍼
+      const safeReject = (err: Error) => {
+        if (isFinished) return;
+        isFinished = true;
+        req.destroy();
+        reject(err);
+      };
+
+      const safeResolve = (response: HttpResponse) => {
+        if (isFinished) return;
+        isFinished = true;
+        resolve({ response });
+      };
+
       const requestFunc = isSSL ? hsRequest : hRequest;
       const req = requestFunc(nodeHttpsOptions, (res) => {
         const httpResponse = new HttpResponse({
-          statusCode: res.statusCode || -1,
+          statusCode: res.statusCode,
           headers: getTransformedHeaders(res.headers),
           body: res,
         });
-        resolve({ response: httpResponse });
+        safeResolve(httpResponse);
       });
-      setConnectionTimeout(req, reject, this.config.connectionTimeout);
-      setSocketTimeout(req, reject, this.config.socketTimeout);
 
-      req.on("error", (err: Error) => {
-        req.destroy();
-        return reject(
-          new IngestkoreaError({
-            code: 400,
-            type: "Bad Request",
-            message: "Invalid Request",
-            description: err.message,
-          })
-        );
+      setConnectionTimeout(req, safeReject, this.config.connectionTimeout);
+      setSocketTimeout(req, safeReject, this.config.socketTimeout);
+
+      req.on("error", (err) => {
+        safeReject(err);
       });
+
       writeRequestBody(req, request);
     });
   }

@@ -1,10 +1,8 @@
-import { Endpoint, HeaderBag, HttpMessage, HttpRequest as IHttpRequest, QueryParameterBag } from "../types";
+import { HttpRequest as IHttpRequest, HeaderBag, QueryParameterBag } from "../models/index.js";
 
-type HttpRequestOptions = Partial<HttpMessage> & Partial<Endpoint> & { method?: string };
+type HttpRequestOptions = Partial<IHttpRequest>;
 
-export interface HttpRequest extends IHttpRequest {}
-
-export class HttpRequest implements HttpMessage, Endpoint {
+export class HttpRequest implements IHttpRequest {
   method: string;
   protocol: string;
   hostname: string;

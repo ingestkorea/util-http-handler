@@ -1,17 +1,32 @@
 {
   "name": "@ingestkorea/util-http-handler",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "description": "INGESTKOREA Utility HTTP Handler for Node.js.",
+  "exports": {
+    ".": {
+      "import": "./dist-es/index.js",
+      "require": "./dist-cjs/index.js",
+      "types": "./dist-types/index.d.ts"
+    }
+  },
   "main": "./dist-cjs/index.js",
   "module": "./dist-es/index.js",
   "types": "./dist-types/index.d.ts",
+  "files": [
+    "dist-cjs",
+    "dist-es",
+    "dist-types",
+    "!dist-cjs/test/**",
+    "!dist-es/test/**",
+    "!dist-types/test/**"
+  ],
   "scripts": {
     "build": "npm run clean && npm run build:cjs && npm run build:es && npm run build:types",
     "build:cjs": "tsc -p tsconfig.cjs.json",
     "build:es": "tsc -p tsconfig.es.json",
     "build:types": "tsc -p tsconfig.types.json",
-    "clean": "rm -rf ./dist-*",
-    "publish": "npm run build && npm publish --access public"
+    "clean": "rm -rf dist-*",
+    "prepublishOnly": "npm run build"
   },
   "repository": {
     "type": "git",
@@ -23,11 +38,8 @@
     "url": "https://github.com/ingestkorea/util-http-handler/issues"
   },
   "homepage": "https://github.com/ingestkorea/util-http-handler#readme",
-  "dependencies": {
-    "@ingestkorea/util-error-handler": "^1.0.2"
-  },
   "devDependencies": {
-    "@types/node": "^18.11.9",
-    "typescript": "^5.5.4"
+    "@types/node": "^22",
+    "typescript": "^5"
   }
 }

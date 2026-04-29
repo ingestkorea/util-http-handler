@@ -1,18 +1,14 @@
-import { HeaderBag, HttpMessage, HttpResponse as IHttpResponse } from "../types";
+import { HeaderBag, HttpMessage, HttpResponse as IHttpResponse } from "../models/index.js";
 
-type HttpResponseOptions = Partial<HttpMessage> & {
-  statusCode: number;
-};
+type HttpResponseOptions = Partial<IHttpResponse>;
 
-export interface HttpResponse extends IHttpResponse {}
-
-export class HttpResponse {
+export class HttpResponse implements IHttpResponse {
   statusCode: number;
   headers: HeaderBag;
   body?: any;
 
   constructor(options: HttpResponseOptions) {
-    this.statusCode = options.statusCode;
+    this.statusCode = options.statusCode || -1;
     this.headers = options.headers || {};
     this.body = options.body;
   }

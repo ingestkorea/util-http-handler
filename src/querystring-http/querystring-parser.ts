@@ -1,4 +1,4 @@
-import { QueryParameterBag } from "../types";
+import { QueryParameterBag } from "../models/index.js";
 
 export const parseQueryString = (querystring: string): QueryParameterBag => {
   const init: QueryParameterBag = {};

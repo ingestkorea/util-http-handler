@@ -1,4 +1,4 @@
-export interface HttpRequest extends HttpMessage, Endpoint {
+export interface HttpRequest extends Endpoint, HttpMessage {
   method: string;
 }
 
@@ -10,13 +10,6 @@ export interface ResolvedHttpResponse extends HttpResponse {
   body: string;
 }
 
-export interface HttpMessage {
-  headers: HeaderBag;
-  body?: any;
-}
-
-export type HeaderBag = Record<string, string>;
-
 export interface Endpoint {
   protocol: string;
   hostname: string;
@@ -24,4 +17,11 @@ export interface Endpoint {
   query?: QueryParameterBag;
 }
 
+export interface HttpMessage {
+  headers: HeaderBag;
+  body?: any;
+}
+
 export type QueryParameterBag = Record<string, string | string[] | null>;
+
+export type HeaderBag = Record<string, string>;

@@ -1,5 +1,5 @@
-import { HeaderBag } from "./types";
 import { IncomingHttpHeaders } from "http";
+import { HeaderBag } from "./models/index.js";
 
 export const getTransformedHeaders = (headers: IncomingHttpHeaders): HeaderBag => {
   const init: HeaderBag = {};
