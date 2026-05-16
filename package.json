@@ -1,7 +1,8 @@
 {
   "name": "@ingestkorea/util-http-handler",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "INGESTKOREA Utility HTTP Handler for Node.js.",
+  "type": "module",
   "exports": {
     ".": {
       "import": "./dist-es/index.js",

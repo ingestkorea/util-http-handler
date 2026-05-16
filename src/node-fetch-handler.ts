@@ -1,13 +1,21 @@
 import { HttpRequest, HttpResponse } from "./protocol-http/index.js";
 import { buildQueryString } from "./querystring-http/index.js";
-import { HeaderBag } from "./models/index.js";
+import {
+  HeaderBag,
+  HttpHandlerError,
+  HttpHandlerErrorCode,
+  CODE_TIME_OUT,
+  CODE_NETWORK_ERROR,
+} from "./models/index.js";
 
 export interface NodeFetchHandlerOptions {
-  requestTimeout?: number; // 전체 요청 타임아웃
+  requestTimeout?: number;
+  keepAlive?: boolean;
 }
 
 interface ResolvedNodeFetchHandlerOptions {
   requestTimeout: number;
+  keepAlive: boolean;
 }
 
 const DEFAULT_REQUEST_TIMEOUT = 5000;
@@ -18,6 +26,7 @@ export class NodeFetchHandler {
   constructor(options?: NodeFetchHandlerOptions) {
     this.config = {
       requestTimeout: options?.requestTimeout || DEFAULT_REQUEST_TIMEOUT,
+      keepAlive: options?.keepAlive ?? true,
     };
   }
 
@@ -31,7 +40,7 @@ export class NodeFetchHandler {
         signal: controller.signal,
         method: request.method,
         headers: request.headers,
-        keepalive: true,
+        keepalive: this.config.keepAlive,
         redirect: "error",
         ...(body && { body }),
       });
@@ -43,8 +52,27 @@ export class NodeFetchHandler {
       });
 
       return { response: httpResponse };
-    } catch (e) {
-      throw e;
+    } catch (err: any) {
+      if (err instanceof HttpHandlerError) {
+        throw err;
+      }
+
+      if (err?.name === "AbortError" || err?.name === "TimeoutError") {
+        throw new HttpHandlerError({
+          code: "SDK.TIMEOUT",
+          message: err.message || "Fetch request timed out",
+        });
+      }
+
+      const errorCode = convertFetchErrorCode(err);
+      if (errorCode !== "SDK.UNKNOWN_ERROR") {
+        throw new HttpHandlerError({
+          code: errorCode,
+          message: err?.cause?.message || err?.message || String(err),
+        });
+      }
+
+      throw err;
     } finally {
       clearTimeout(timeoutId);
     }
@@ -123,4 +151,24 @@ export const destroyFetchStream = async (stream: ReadableStream | null): Promise
   } catch (err) {
     return;
   }
+};
+
+const convertFetchErrorCode = (err: any): HttpHandlerErrorCode => {
+  const causeCode = err?.cause?.code;
+  if (typeof causeCode === "string") {
+    if (CODE_TIME_OUT.includes(causeCode)) return "SDK.TIMEOUT";
+    if (CODE_NETWORK_ERROR.includes(causeCode)) return "SDK.NETWORK_ERROR";
+  }
+
+  if (typeof err?.code === "string") {
+    if (CODE_TIME_OUT.includes(err.code)) return "SDK.TIMEOUT";
+    if (CODE_NETWORK_ERROR.includes(err.code)) return "SDK.NETWORK_ERROR";
+  }
+
+  const errMsg = String(err?.message || "").toLowerCase();
+  if (errMsg.includes("fetch failed") || errMsg.includes("hang up") || errMsg.includes("reset")) {
+    return "SDK.NETWORK_ERROR";
+  }
+
+  return "SDK.UNKNOWN_ERROR";
 };

@@ -6,11 +6,13 @@ import { writeRequestBody } from "./write-request-body.js";
 import { getTransformedHeaders } from "./get-transformed-headers.js";
 import { setConnectionTimeout } from "./set-connection-timeout.js";
 import { setSocketTimeout } from "./set-socket-timeout.js";
+import { HttpHandlerError, HttpHandlerErrorCode, CODE_TIME_OUT, CODE_NETWORK_ERROR } from "./models/index.js";
 
 export interface NodeHttpHandlerOptions {
   connectionTimeout?: number;
   socketTimeout?: number;
-  freeSocketTimeout?: number;
+  keepAlive?: boolean;
+  family?: 4 | 6;
   httpAgent?: hAgent;
   httpsAgent?: hsAgent;
 }
@@ -24,27 +26,27 @@ interface ResolvedNodeHttpHandlerConfig {
 
 const DEFAULT_CONNECTION_TIMEOUT = 5000;
 const DEFAULT_SOCKET_TIMEOUT = 5000;
-const DEFAULT_FREE_SOCKET_TIMEOUT = 3000;
 const DEFAULT_MAX_SOCKETS = 50;
 
 export class NodeHttpHandler {
   config: ResolvedNodeHttpHandlerConfig;
 
   constructor(options?: NodeHttpHandlerOptions) {
+    const resolvedConnectionTimeout = options?.connectionTimeout || DEFAULT_CONNECTION_TIMEOUT;
+    const resolvedSocketTimeout = options?.socketTimeout || DEFAULT_SOCKET_TIMEOUT;
+
     const agentOptions: AgentOptions = {
-      keepAlive: true,
-      family: 4,
+      keepAlive: options?.keepAlive ?? true,
+      family: options?.family ?? 4,
       maxSockets: DEFAULT_MAX_SOCKETS,
+      timeout: resolvedSocketTimeout + 2000,
     };
-    const httpAgent = options?.httpAgent || new hAgent(agentOptions);
-    const httpsAgent = options?.httpsAgent || new hsAgent(agentOptions);
-    (httpsAgent as any).freeSocketTimeout = options?.freeSocketTimeout || DEFAULT_FREE_SOCKET_TIMEOUT;
 
     this.config = {
-      connectionTimeout: options?.connectionTimeout || DEFAULT_CONNECTION_TIMEOUT,
-      socketTimeout: options?.socketTimeout || DEFAULT_SOCKET_TIMEOUT,
-      httpAgent,
-      httpsAgent,
+      connectionTimeout: resolvedConnectionTimeout,
+      socketTimeout: resolvedSocketTimeout,
+      httpAgent: options?.httpAgent || new hAgent(agentOptions),
+      httpsAgent: options?.httpsAgent || new hsAgent(agentOptions),
     };
   }
 
@@ -66,7 +68,6 @@ export class NodeHttpHandler {
       };
 
       let isFinished = false;
-      // 중복 호출 방지 래퍼
       const safeReject = (err: Error) => {
         if (isFinished) return;
         isFinished = true;
@@ -94,10 +95,31 @@ export class NodeHttpHandler {
       setSocketTimeout(req, safeReject, this.config.socketTimeout);
 
       req.on("error", (err) => {
-        safeReject(err);
+        if (err instanceof HttpHandlerError) {
+          return safeReject(err);
+        }
+
+        if ("code" in err) {
+          const error = new HttpHandlerError({
+            code: convertErrorCode(err.code),
+            message: err.message,
+          });
+          return safeReject(error);
+        }
+
+        return safeReject(err instanceof Error ? err : new Error(String(err)));
       });
 
       writeRequestBody(req, request);
     });
   }
 }
+
+const convertErrorCode = (code: unknown): HttpHandlerErrorCode => {
+  if (typeof code !== "string") return "SDK.UNKNOWN_ERROR";
+
+  if (CODE_TIME_OUT.includes(code)) return "SDK.TIMEOUT";
+  if (CODE_NETWORK_ERROR.includes(code)) return "SDK.NETWORK_ERROR";
+
+  return "SDK.UNKNOWN_ERROR";
+};

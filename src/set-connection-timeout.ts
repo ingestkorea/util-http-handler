@@ -1,5 +1,6 @@
 import { ClientRequest } from "node:http";
 import { Socket } from "node:net";
+import { HttpHandlerError } from "./models/error.js";
 
 export const setConnectionTimeout = (
   request: ClientRequest,
@@ -13,7 +14,17 @@ export const setConnectionTimeout = (
 
     const timeoutId = setTimeout(() => {
       cleanup();
-      safeReject(new Error(`[Gateway Timeout]: Failed to establish connection within ${timeoutInMs}ms`));
+
+      if (!socket.destroyed) {
+        socket.destroy();
+      }
+
+      const error = new HttpHandlerError({
+        code: "SDK.TIMEOUT",
+        message: `[Gateway Timeout]: Failed to establish connection within ${timeoutInMs}ms`,
+      });
+
+      safeReject(error);
     }, timeoutInMs);
 
     const cleanup = () => {
