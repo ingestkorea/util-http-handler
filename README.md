@@ -54,24 +54,26 @@ npm install -D typescript @types/node
 
 #### NodeHttpHandler
 
-- 정밀한 소켓 제어가 필요한 서버 사이드 환경에 적합합니다. (서버/람다 권장)
-- 실행 환경에 맞춰 freeSocketTimeout을 조정하면 좀비 소켓(ECONNRESET) 에러를 효과적으로 방지할 수 있습니다.
+- 정밀한 소켓 풀 및 프로토콜 제어가 필요한 백엔드 서버 사이드 환경에 적합합니다. (서버/람다 권장)
+- 실행 환경에 맞춰 `socketTimeout`을 조정하면 서버 지연으로 인한 **무한 대기 현상을 방지합니다.**
+- 내부적으로 내부 소켓 유휴 타임아웃은 `socketTimeout +2초` 설정되어 유휴 소켓 재사용 시 발생하는 **`socket hang up (ECONNRESET)` 에러를 예방**합니다.
 
 ```ts
 import { NodeHttpHandler } from "@ingestkorea/util-http-handler";
 
-// 1. AWS Lambda 환경 (안정성 우선)
+// 1. AWS Lambda 환경 (빠른 실패 및 타임아웃 방지)
+// 람다 특성상 keepAlive를 끄는 것이 소켓 유실로 인한 ECONNRESET 예방에 유리
 const lambdaHandler = new NodeHttpHandler({
-  connectionTimeout: 2000,
-  socketTimeout: 3000,
-  freeSocketTimeout: 1000, // 서버가 연결을 끊기 전에 클라이언트가 먼저 정리
+  keepAlive: false,
+  connectionTimeout: 1000,
+  socketTimeout: 2000,
 });
 
-// 2. 일반 Node.js 서버 환경 (성능 우선)
+// 2. 일반 Node.js 백엔드 서버 환경 (기본 권장값)
+// 지속적인 커넥션 재사용으로 성능 최적화
 const serverHandler = new NodeHttpHandler({
   connectionTimeout: 3000,
   socketTimeout: 5000,
-  freeSocketTimeout: 15000, // 소켓 재사용률 높여서 응답 지연 시간 단축
 });
 ```
 
@@ -136,8 +138,11 @@ const isJsonResponse = (contentType?: string): boolean => {
 ### 요청 실행
 
 ```ts
-import { HttpRequest } from "@ingestkorea/util-http-handler";
+import { HttpRequest, NodeHttpHandler, HttpHandlerError } from "@ingestkorea/util-http-handler";
 import { parseBody, parseErrorBody } from "./helper.js";
+
+// 핸들러는 성능을 위해 재사용 권장
+const httpHandler = new NodeHttpHandler({...});
 
 (async () => {
   try {
@@ -158,7 +163,13 @@ import { parseBody, parseErrorBody } from "./helper.js";
     const result = await parseBody(response);
     console.log(result);
   } catch (err) {
-    console.error(err);
+    if (err instanceof HttpHandlerError) {
+      if(err.code == "SDK.NETWORK_ERROR" || err.code == "SDK.TIMEOUT"){
+        // ...재시도 로직
+      }
+    } else {
+      console.error(err);
+    }
   }
 })();
 ```

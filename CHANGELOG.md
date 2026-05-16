@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.4.0 (2026-05-16)
+## 1.4.1 (2026-05-16)
 
 ### Added
 
@@ -20,3 +20,7 @@
   - `AbortError`/`TimeoutError` 및 `err.cause.code`를 3단계 Fallback 구조로 추적하여 `HttpHandlerError`를 이용한 에러 규격화 추가.
 - **`package.json`**:
   - ESM 지원하기 위해서 `"type": "module"` 속성 추가.
+- **`NodeHttpHandlerOptions`**:
+  - 초기화 시 구형 타임아웃 옵션인 `freeSocketTimeout` 제거
+  - `socketTimeout` 또는 `keepAlive` 옵션으로 대체
+  - 내부 소켓 유휴 타임아웃(`agentOptions.timeout`)은 비즈니스 타임아웃(`socketTimeout`)보다 +2초 길게 자동 계산되도록 설정. 유휴 소켓 재사용 시 발생할 수 있는 레이스 컨디션 및 `socket hang up` 차단.
