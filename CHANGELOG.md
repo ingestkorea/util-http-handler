@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.3 (2026-05-25)
+
+### Changed
+
+- 프로젝트에서 `"type": "module"` 사용시 순수 ESM 구조(`import/export`) 지원.
+
 ## 1.4.2 (2026-05-25)
 
 ### Changed
