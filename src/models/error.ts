@@ -9,6 +9,3 @@ export class HttpHandlerError extends Error {
     this.name = "HttpHandlerError";
   }
 }
-
-export const CODE_TIME_OUT = ["ETIMEDOUT", "EAI_AGAIN"];
-export const CODE_NETWORK_ERROR = ["ECONNRESET", "ECONNREFUSED", "EADDRINUSE", "EPIPE", "EHOSTUNREACH", "ENETUNREACH"];

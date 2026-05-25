@@ -1,12 +1,7 @@
 import { HttpRequest, HttpResponse } from "./protocol-http/index.js";
 import { buildQueryString } from "./querystring-http/index.js";
-import {
-  HeaderBag,
-  HttpHandlerError,
-  HttpHandlerErrorCode,
-  CODE_TIME_OUT,
-  CODE_NETWORK_ERROR,
-} from "./models/index.js";
+import { convertNodeFetchErrorCode } from "./convert-http-error-code.js";
+import { HeaderBag, HttpHandlerError } from "./models/index.js";
 
 export interface NodeFetchHandlerOptions {
   requestTimeout?: number;
@@ -36,11 +31,14 @@ export class NodeFetchHandler {
     const body = this.serializeBody(request.body);
     try {
       const fullUrl = this.buildUrl(request);
+      const headers = new Headers(request.headers);
+      headers.set("connection", this.config.keepAlive ? "keep-alive" : "close");
+
       const response = await fetch(fullUrl, {
         signal: controller.signal,
         method: request.method,
-        headers: request.headers,
-        keepalive: this.config.keepAlive,
+        headers: headers,
+        keepalive: false,
         redirect: "error",
         ...(body && { body }),
       });
@@ -64,7 +62,7 @@ export class NodeFetchHandler {
         });
       }
 
-      const errorCode = convertFetchErrorCode(err);
+      const errorCode = convertNodeFetchErrorCode(err);
       if (errorCode !== "SDK.UNKNOWN_ERROR") {
         throw new HttpHandlerError({
           code: errorCode,
@@ -151,24 +149,4 @@ export const destroyFetchStream = async (stream: ReadableStream | null): Promise
   } catch (err) {
     return;
   }
-};
-
-const convertFetchErrorCode = (err: any): HttpHandlerErrorCode => {
-  const causeCode = err?.cause?.code;
-  if (typeof causeCode === "string") {
-    if (CODE_TIME_OUT.includes(causeCode)) return "SDK.TIMEOUT";
-    if (CODE_NETWORK_ERROR.includes(causeCode)) return "SDK.NETWORK_ERROR";
-  }
-
-  if (typeof err?.code === "string") {
-    if (CODE_TIME_OUT.includes(err.code)) return "SDK.TIMEOUT";
-    if (CODE_NETWORK_ERROR.includes(err.code)) return "SDK.NETWORK_ERROR";
-  }
-
-  const errMsg = String(err?.message || "").toLowerCase();
-  if (errMsg.includes("fetch failed") || errMsg.includes("hang up") || errMsg.includes("reset")) {
-    return "SDK.NETWORK_ERROR";
-  }
-
-  return "SDK.UNKNOWN_ERROR";
 };

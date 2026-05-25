@@ -17,9 +17,9 @@
 
 - **Multi-Handler 지원**: 정밀한 소켓 제어가 가능한 `NodeHttpHandler`와 최신 API 기반의 `NodeFetchHandler`를 제공합니다.
 
-- **Keep-Alive 지원**: 소켓을 재사용하여 연속적인 요청의 응답 속도를 향상시킵니다.
+- **Keep-Alive 지원**: 기본적으로 소켓을 재사용하여(`"keepAlive": true`) 연속적인 요청의 응답 속도를 향상시킵니다.
 
-- **좀비 소켓 방지**: `freeSocketTimeout` 옵션을 통해 람다 환경의 간헐적인 연결 끊김(ECONNRESET) 현상을 방지합니다.
+- **좀비 소켓 방지**: 내부 소켓 유휴 타임아웃은 비즈니스 타임아웃(socketTimeout)보다 +2초 길게 자동 설정되어서 유휴 소켓 재사용 시 발생하는 `socket hang up` (ECONNRESET) 에러를 방지합니다.
 
 - **이중 타임아웃 시스템**:
 
@@ -29,6 +29,9 @@
 - **리소스 자동 정리**: 요청 성공, 실패, 데이터 파싱 에러 시에도 스트림이 항상 닫히도록 제어합니다.
 
 - **환경별 스트림 처리**: Node.js `Readable` 및 Web 표준 `ReadableStream`을 모두 안전하게 수집하고 정리합니다.
+
+- **통합 HTTP 에러 클래스(HttpHandlerError)**:
+  상위 `middlewareRetry` 미들웨어가 재시도 전략시 식별할 수 있도록 에러 코드 규격을 표준화했습니다.(`SDK.TIMEOUT`, `SDK.NETWORK_ERROR`, `SDK.UNKNOWN_ERROR`)
 
 ## Installing
 
@@ -107,6 +110,10 @@ import {
   destroyFetchStream     // Fetch 스트림 파괴
 } from "@ingestkorea/util-http-handler";
 
+const isJsonResponse = (contentType?: string): boolean => {
+  return contentType?.toLowerCase().includes("application/json") ?? false;
+};
+
 const parseBody = async (output: HttpResponse): Promise<any> => {
   const { headers, body: streamBody } = output;
 
@@ -128,17 +135,14 @@ const parseBody = async (output: HttpResponse): Promise<any> => {
 
 const parseErrorBody = async (output: HttpResponse): Promise<never> => {
   ...
+  throw new Error('...')
 }
-
-const isJsonResponse = (contentType?: string): boolean => {
-  return contentType?.toLowerCase().includes("application/json") ?? false;
-};
 ```
 
 ### 요청 실행
 
 ```ts
-import { HttpRequest, NodeHttpHandler, HttpHandlerError } from "@ingestkorea/util-http-handler";
+import { NodeHttpHandler, HttpRequest, HttpHandlerError } from "@ingestkorea/util-http-handler";
 import { parseBody, parseErrorBody } from "./helper.js";
 
 // 핸들러는 성능을 위해 재사용 권장
@@ -157,7 +161,7 @@ const httpHandler = new NodeHttpHandler({...});
 
     // 에러 상태 코드 처리
     if (response.statusCode >= 300) {
-      // parseErrorBody 로직 실행.
+      await parseErrorBody(response)
     }
 
     const result = await parseBody(response);

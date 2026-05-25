@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4.2 (2026-05-25)
+
+### Changed
+
+- **`package.json`**:
+  - CommonJS 환경 호환성 위해 `"type": "module"` 속성 제거
+- **`NodeFetchHandler`**:
+  - TCP 커넥션을 재사용 위한 **keepAlive** 옵션 반영
+
 ## 1.4.1 (2026-05-16)
 
 ### Added

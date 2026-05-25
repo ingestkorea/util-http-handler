@@ -12,6 +12,12 @@ export const setConnectionTimeout = (
   request.on("socket", (socket: Socket) => {
     if (!socket.connecting) return;
 
+    const cleanup = () => {
+      clearTimeout(timeoutId);
+      socket.off("connect", onConnect);
+      socket.off("error", onError);
+    };
+
     const timeoutId = setTimeout(() => {
       cleanup();
 
@@ -26,12 +32,6 @@ export const setConnectionTimeout = (
 
       safeReject(error);
     }, timeoutInMs);
-
-    const cleanup = () => {
-      clearTimeout(timeoutId);
-      socket.off("connect", onConnect);
-      socket.off("error", onError);
-    };
 
     const onConnect = () => cleanup();
     const onError = (err: Error) => cleanup();

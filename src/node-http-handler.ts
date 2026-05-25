@@ -6,7 +6,8 @@ import { writeRequestBody } from "./write-request-body.js";
 import { getTransformedHeaders } from "./get-transformed-headers.js";
 import { setConnectionTimeout } from "./set-connection-timeout.js";
 import { setSocketTimeout } from "./set-socket-timeout.js";
-import { HttpHandlerError, HttpHandlerErrorCode, CODE_TIME_OUT, CODE_NETWORK_ERROR } from "./models/index.js";
+import { convertNodeHttpErrorCode } from "./convert-http-error-code.js";
+import { HttpHandlerError } from "./models/index.js";
 
 export interface NodeHttpHandlerOptions {
   connectionTimeout?: number;
@@ -101,7 +102,7 @@ export class NodeHttpHandler {
 
         if ("code" in err) {
           const error = new HttpHandlerError({
-            code: convertErrorCode(err.code),
+            code: convertNodeHttpErrorCode(err.code),
             message: err.message,
           });
           return safeReject(error);
@@ -114,12 +115,3 @@ export class NodeHttpHandler {
     });
   }
 }
-
-const convertErrorCode = (code: unknown): HttpHandlerErrorCode => {
-  if (typeof code !== "string") return "SDK.UNKNOWN_ERROR";
-
-  if (CODE_TIME_OUT.includes(code)) return "SDK.TIMEOUT";
-  if (CODE_NETWORK_ERROR.includes(code)) return "SDK.NETWORK_ERROR";
-
-  return "SDK.UNKNOWN_ERROR";
-};
