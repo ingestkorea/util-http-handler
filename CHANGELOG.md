@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.4 (2026-xx-xx)
+
+### Changed
+
+- ESM 및 CJS 빌드의 최하위 지원 타겟을 `ES2022`로 상향 및 통일: 네이티브 비동기 스택 트레이스 출력을 지원하여 에러 디버깅 편의성 개선.
+- **NodeHttpHandler**:
+  - TCP 커넥션을 재사용 위한 **keepAlive** 옵션 클라이언트 요청 헤더(`connection`)에 반영 (`keep-alive`, `close`)
+
 ## 1.4.3 (2026-05-25)
 
 ### Changed
@@ -13,7 +21,7 @@
 - **`package.json`**:
   - CommonJS 환경 호환성 위해 `"type": "module"` 속성 제거
 - **`NodeFetchHandler`**:
-  - TCP 커넥션을 재사용 위한 **keepAlive** 옵션 반영
+  - TCP 커넥션을 재사용 위한 **keepAlive** 옵션 클라이언트 요청 헤더(`connection`)에 반영 (`keep-alive`, `close`)
 
 ## 1.4.1 (2026-05-16)
 

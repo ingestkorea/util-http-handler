@@ -21,6 +21,7 @@ export interface NodeHttpHandlerOptions {
 interface ResolvedNodeHttpHandlerConfig {
   connectionTimeout: number;
   socketTimeout: number;
+  keepAlive: boolean;
   httpAgent: hAgent;
   httpsAgent: hsAgent;
 }
@@ -28,16 +29,22 @@ interface ResolvedNodeHttpHandlerConfig {
 const DEFAULT_CONNECTION_TIMEOUT = 5000;
 const DEFAULT_SOCKET_TIMEOUT = 5000;
 const DEFAULT_MAX_SOCKETS = 50;
+const DEFAULT_KEEP_ALIVE = true;
 
 export class NodeHttpHandler {
-  config: ResolvedNodeHttpHandlerConfig;
+  private config: ResolvedNodeHttpHandlerConfig;
 
   constructor(options?: NodeHttpHandlerOptions) {
     const resolvedConnectionTimeout = options?.connectionTimeout || DEFAULT_CONNECTION_TIMEOUT;
     const resolvedSocketTimeout = options?.socketTimeout || DEFAULT_SOCKET_TIMEOUT;
 
+    const customAgent = options?.httpsAgent || options?.httpAgent;
+    const resolvedKeepAlive = customAgent
+      ? (customAgent as any).keepAlive ?? DEFAULT_KEEP_ALIVE
+      : options?.keepAlive ?? DEFAULT_KEEP_ALIVE;
+
     const agentOptions: AgentOptions = {
-      keepAlive: options?.keepAlive ?? true,
+      keepAlive: resolvedKeepAlive,
       family: options?.family ?? 4,
       maxSockets: DEFAULT_MAX_SOCKETS,
       timeout: resolvedSocketTimeout + 2000,
@@ -46,6 +53,7 @@ export class NodeHttpHandler {
     this.config = {
       connectionTimeout: resolvedConnectionTimeout,
       socketTimeout: resolvedSocketTimeout,
+      keepAlive: resolvedKeepAlive,
       httpAgent: options?.httpAgent || new hAgent(agentOptions),
       httpsAgent: options?.httpsAgent || new hsAgent(agentOptions),
     };
@@ -64,7 +72,10 @@ export class NodeHttpHandler {
         method: request.method,
         host: request.hostname,
         path: queryString ? `${request.path}?${queryString}` : request.path,
-        headers: request.headers,
+        headers: {
+          ...request.headers,
+          connection: this.config.keepAlive ? "keep-alive" : "close",
+        },
         agent: isSSL ? this.config.httpsAgent : this.config.httpAgent,
       };
 
